@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>时间线</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置Tailwind -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#333333',
+            secondary: '#e63946',
+            light: '#f5f5f5',
+            medium: '#d3d3d3',
+            dark: '#212121',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .card-hover {
+        @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+      }
+      .timeline-line {
+        @apply absolute left-10 top-0 bottom-0 w-0.5 bg-primary/30;
+      }
+      .timeline-dot {
+        @apply absolute left-10 top-3 w-3 h-3 rounded-full bg-secondary border-2 border-white -translate-x-1/2;
+      }
+      .timeline-hour-mark {
+        @apply absolute left-0 top-0 text-xs text-primary/60 whitespace-nowrap w-10 text-right pr-3 pt-0.5;
+      }
+      .avatar {
+        @apply flex items-center justify-center rounded-full font-bold text-white transition-all duration-200;
+      }
+      .character-selector {
+        @apply relative cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-secondary/50;
+      }
+      .character-selector.selected {
+        @apply ring-2 ring-secondary;
+      }
+      .time-input-group {
+        @apply flex items-center gap-2;
+      }
+      .time-input-part {
+        @apply w-16 bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50 text-center;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-light text-dark min-h-screen">
+  <!-- 导航栏 -->
+  <nav class="bg-white shadow-sm sticky top-0 z-50 border-b border-medium">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="fa fa-book text-secondary text-2xl"></i>
+        <h1 class="text-xl md:text-2xl font-bold text-primary">时间线</h1>
+      </div>
+      <div class="flex gap-4">
+        <button id="helpBtn" class="p-2 rounded-full hover:bg-medium transition-colors">
+          <i class="fa fa-question text-primary"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 页面容器 -->
+  <div class="container mx-auto px-4 py-6 md:py-10">
+    <!-- 首页：选项页面 -->
+    <div id="homePage" class="min-h-[70vh] flex flex-col items-center justify-center">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4 text-primary">请开始你的表演</h2>
+        <p class="text-primary/70 max-w-lg mx-auto"></p>
+      </div>
+      
+      <div class="grid md:grid-cols-2 gap-8 max-w-2xl w-full">
+        <div class="bg-white rounded-lg p-8 border border-medium shadow-sm card-hover cursor-pointer" id="newGameBtn">
+          <div class="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-6 mx-auto">
+            <i class="fa fa-plus text-secondary text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold text-center mb-3 text-primary">开启新本</h3>
+          <p class="text-center text-primary/70">创建新的剧本，添加角色和时间线</p>
+        </div>
+        
+        <div class="bg-white rounded-lg p-8 border border-medium shadow-sm card-hover cursor-pointer" id="historyBtn">
+          <div class="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-6 mx-auto">
+            <i class="fa fa-history text-secondary text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold text-center mb-3 text-primary">历史剧本</h3>
+          <p class="text-center text-primary/70">查看之前的剧本</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新本设置页面 -->
+    <div id="newGameSetupPage" class="hidden">
+      <div class="mb-8">
+        <button id="backToHome" class="flex items-center text-secondary hover:text-secondary/80 transition-colors mb-6">
+          <i class="fa fa-arrow-left mr-2"></i> 返回首页
+        </button>
+        
+        <h2 class="text-2xl font-bold text-primary mb-2">新剧本设置</h2>
+        <p class="text-primary/70 mb-6">设置剧本名称开始你的记录</p>
+        
+        <form id="gameSetupForm" class="bg-white rounded-lg p-6 border border-medium shadow-sm mb-8 max-w-md">
+          <div class="mb-6">
+            <label for="gameName" class="block text-sm font-medium mb-2 text-primary">剧本名称</label>
+            <input type="text" id="gameName" class="w-full bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50" required placeholder="例如：午夜谋杀案">
+          </div>
+          
+          <button type="submit" class="bg-secondary hover:bg-secondary/90 text-white px-6 py-2.5 rounded-md flex items-center transition-colors">
+            <i class="fa fa-check mr-2"></i>确认并添加角色
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 角色添加页面 -->
+    <div id="charactersPage" class="hidden">
+      <div class="mb-6">
+        <button id="backToSetup" class="flex items-center text-secondary hover:text-secondary/80 transition-colors mb-6">
+          <i class="fa fa-arrow-left mr-2"></i> 返回设置
+        </button>
+        
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-primary flex items-center">
+              <i class="fa fa-users text-secondary mr-3"></i>角色信息
+            </h2>
+            <p class="text-primary/70 mt-1" id="currentGameTitle">正在编辑：[剧本名称]</p>
+          </div>
+          <div class="flex gap-3">
+            <button id="deleteGameBtn" class="bg-red-100 hover:bg-red-200 text-red-600 px-4 py-2 rounded-md flex items-center transition-colors">
+              <i class="fa fa-trash mr-2"></i>删除剧本
+            </button>
+            <button id="addCharacterBtn" class="bg-secondary hover:bg-secondary/90 text-white px-4 py-2 rounded-md flex items-center transition-colors">
+              <i class="fa fa-plus mr-2"></i>添加角色
+            </button>
+          </div>
+        </div>
+
+        <div id="charactersContainer" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div class="col-span-full text-center py-12 text-primary/60" id="noCharactersMsg">
+            <i class="fa fa-user-o text-4xl mb-3"></i>
+            <p>还没有添加角色，点击"添加角色"按钮开始</p>
+          </div>
+        </div>
+        
+        <div class="flex justify-end">
+          <button id="proceedToTimeline" class="bg-secondary hover:bg-secondary/90 text-white px-6 py-2.5 rounded-md flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fa fa-arrow-right mr-2"></i>进入时间线记录
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 时间线记录页面 -->
+    <div id="timelinePage" class="hidden">
+      <div class="mb-6">
+        <button id="backToCharacters" class="flex items-center text-secondary hover:text-secondary/80 transition-colors mb-6">
+          <i class="fa fa-arrow-left mr-2"></i> 返回角色列表
+        </button>
+        
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-primary flex items-center">
+              <i class="fa fa-history text-secondary mr-3"></i>案发时间线
+            </h2>
+            <p class="text-primary/70 mt-1" id="timelineGameTitle">正在编辑：[剧本名称]</p>
+          </div>
+          <button id="addTimelineBtn" class="bg-secondary hover:bg-secondary/90 text-white px-4 py-2 rounded-md flex items-center transition-colors">
+            <i class="fa fa-plus mr-2"></i>添加事件
+          </button>
+        </div>
+
+        <div id="timelineContainer" class="relative pl-20 space-y-4 mb-8">
+          <div class="timeline-line"></div>
+          <div class="text-center py-12 text-primary/60" id="noTimelineMsg">
+            <i class="fa fa-clock-o text-4xl mb-3"></i>
+            <p>还没有添加时间线事件，点击"添加事件"按钮开始</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史剧本页面 -->
+    <div id="historyPage" class="hidden">
+      <div class="mb-6">
+        <button id="backToHomeFromHistory" class="flex items-center text-secondary hover:text-secondary/80 transition-colors mb-6">
+          <i class="fa fa-arrow-left mr-2"></i> 返回首页
+        </button>
+        
+        <h2 class="text-2xl font-bold text-primary flex items-center mb-6">
+          <i class="fa fa-history text-secondary mr-3"></i>历史剧本
+        </h2>
+
+        <div id="historyContainer" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="col-span-full text-center py-12 text-primary/60" id="noHistoryMsg">
+            <i class="fa fa-folder-open-o text-4xl mb-3"></i>
+            <p>还没有历史剧本记录</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t border-medium py-6 mt-12">
+    <div class="container mx-auto px-4 text-center text-primary/60 text-sm">
+      <p>Timeline 时间线 | 一切都有迹可循</p>
+    </div>
+  </footer>
+
+  <!-- 添加/编辑角色模态框 -->
+  <div id="characterModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md border border-medium shadow-md transform transition-all">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="characterModalTitle" class="text-xl font-bold text-primary">添加角色</h3>
+        <button id="closeCharacterModal" class="text-primary/60 hover:text-primary">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="characterForm">
+        <input type="hidden" id="characterId">
+        
+        <div class="mb-4">
+          <label for="characterName" class="block text-sm font-medium mb-1 text-primary">姓名</label>
+          <input type="text" id="characterName" class="w-full bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50" required>
+        </div>
+        
+        <div class="mb-4">
+          <label for="characterRelation" class="block text-sm font-medium mb-1 text-primary">与死者的关系</label>
+          <input type="text" id="characterRelation" class="w-full bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50" required>
+        </div>
+        
+        <div class="mb-4">
+          <label for="characterSecret" class="block text-sm font-medium mb-1 text-primary">秘密/动机</label>
+          <textarea id="characterSecret" rows="3" class="w-full bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50"></textarea>
+        </div>
+        
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2 text-primary">头像设置</label>
+          <div class="flex items-center gap-4">
+            <div id="avatarPreview" class="avatar w-16 h-16 bg-secondary text-xl"></div>
+            <div class="flex-1">
+              <label for="avatarText" class="block text-xs text-primary/60 mb-1">头像文字</label>
+              <input type="text" id="avatarText" maxlength="2" class="w-full bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50 text-center">
+            </div>
+            <div>
+              <button type="button" id="randomAvatarColor" class="text-sm px-3 py-1 bg-light border border-medium rounded-md hover:bg-medium transition-colors">
+                随机颜色
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button type="button" id="cancelCharacter" class="px-4 py-2 border border-medium rounded-md hover:bg-medium transition-colors">取消</button>
+          <button type="submit" class="px-4 py-2 bg-secondary hover:bg-secondary/90 text-white rounded-md transition-colors">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 添加/编辑时间线模态框 -->
+  <div id="timelineModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg border border-medium shadow-md transform transition-all">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="timelineModalTitle" class="text-xl font-bold text-primary">添加时间线事件</h3>
+        <button id="closeTimelineModal" class="text-primary/60 hover:text-primary">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="timelineForm">
+        <input type="hidden" id="timelineId">
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2 text-primary">日期</label>
+          <div class="flex items-center gap-3">
+            <select id="dayOffset" class="bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50">
+              <option value="-3">案发前3天</option>
+              <option value="-2">案发前2天</option>
+              <option value="-1">案发前1天</option>
+              <option value="0" selected>案发当日</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="mb-5">
+          <label class="block text-sm font-medium mb-2 text-primary">时间</label>
+          <div class="time-input-group">
+            <input type="number" id="hours" min="0" max="23" class="time-input-part" placeholder="时" required ondblclick="this.select()">
+            <span class="text-primary">:</span>
+            <input type="number" id="minutes" min="0" max="59" class="time-input-part" placeholder="分" required ondblclick="this.select()">
+          </div>
+          <p class="text-xs text-primary/60 mt-1">请输入0-23之间的小时和0-59之间的分钟</p>
+        </div>
+        
+        <div class="mb-5">
+          <label class="block text-sm font-medium mb-2 text-primary">选择角色</label>
+          <div id="characterSelectorContainer" class="flex flex-wrap gap-3 max-h-32 overflow-y-auto p-3 bg-light border border-medium rounded-md">
+            <div class="text-primary/60 text-sm w-full text-center py-2">请先添加角色</div>
+          </div>
+        </div>
+        
+        <div class="mb-6">
+          <label for="timelineEvent" class="block text-sm font-medium mb-2 text-primary">事件描述</label>
+          <textarea id="timelineEvent" rows="3" class="w-full bg-light border border-medium rounded-md px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-secondary/50" required placeholder="描述该角色在此时段发生的事件..."></textarea>
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button type="button" id="cancelTimeline" class="px-4 py-2 border border-medium rounded-md hover:bg-medium transition-colors">取消</button>
+          <button type="submit" class="px-4 py-2 bg-secondary hover:bg-secondary/90 text-white rounded-md transition-colors">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 帮助模态框 -->
+  <div id="helpModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg border border-medium shadow-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-primary">使用帮助</h3>
+        <button id="closeHelpModal" class="text-primary/60 hover:text-primary">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4 text-primary/80">
+        <div>
+          <h4 class="font-semibold text-primary mb-1">开启新本</h4>
+          <p>创建新的剧本记录，设置剧本名称，添加角色信息，然后记录时间线事件。</p>
+        </div>
+        
+        <div>
+          <h4 class="font-semibold text-primary mb-1">角色管理</h4>
+          <p>记录角色的姓名、与死者的关系和秘密/动机。可自定义头像文字和颜色。</p>
+        </div>
+        
+        <div>
+          <h4 class="font-semibold text-primary mb-1">时间线记录</h4>
+          <p>按时间顺序记录各角色的活动，系统会自动按时间排序，方便梳理线索。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 数据存储结构
+    let games = JSON.parse(localStorage.getItem('scriptKillGames')) || [];
+    let currentGame = null;
+    let selectedCharacterId = null;
+    let lastSelectedCharacterId = null;
+    let lastTimeSettings = {
+      dayOffset: '0',
+      hours: '',
+      minutes: ''
+    };
+    
+    // DOM元素
+    const pages = {
+      home: document.getElementById('homePage'),
+      newGameSetup: document.getElementById('newGameSetupPage'),
+      characters: document.getElementById('charactersPage'),
+      timeline: document.getElementById('timelinePage'),
+      history: document.getElementById('historyPage')
+    };
+    
+    const charactersContainer = document.getElementById('charactersContainer');
+    const timelineContainer = document.getElementById('timelineContainer');
+    const historyContainer = document.getElementById('historyContainer');
+    const characterSelectorContainer = document.getElementById('characterSelectorContainer');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const avatarTextInput = document.getElementById('avatarText');
+    const currentGameTitle = document.getElementById('currentGameTitle');
+    const timelineGameTitle = document.getElementById('timelineGameTitle');
+    const proceedToTimelineBtn = document.getElementById('proceedToTimeline');
+    const noCharactersMsg = document.getElementById('noCharactersMsg');
+    const noTimelineMsg = document.getElementById('noTimelineMsg');
+    const noHistoryMsg = document.getElementById('noHistoryMsg');
+    
+    // 时间输入元素
+    const dayOffsetSelect = document.getElementById('dayOffset');
+    const hoursInput = document.getElementById('hours');
+    const minutesInput = document.getElementById('minutes');
+    
+    // 模态框元素
+    const characterModal = document.getElementById('characterModal');
+    const timelineModal = document.getElementById('timelineModal');
+    const helpModal = document.getElementById('helpModal');
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      renderHistory();
+      setupEventListeners();
+    });
+    
+    // 设置事件监听器 - 修复核心：使用事件委托处理动态元素
+    function setupEventListeners() {
+      // 页面导航
+      document.getElementById('newGameBtn').addEventListener('click', () => showPage('newGameSetup'));
+      document.getElementById('historyBtn').addEventListener('click', () => {
+        showPage('history');
+        renderHistory();
+      });
+      document.getElementById('backToHome').addEventListener('click', () => showPage('home'));
+      document.getElementById('backToSetup').addEventListener('click', () => showPage('newGameSetup'));
+      document.getElementById('backToCharacters').addEventListener('click', () => showPage('characters'));
+      document.getElementById('backToHomeFromHistory').addEventListener('click', () => showPage('home'));
+      document.getElementById('proceedToTimeline').addEventListener('click', () => {
+        showPage('timeline');
+        renderTimelines();
+      });
+      
+      // 游戏设置表单
+      document.getElementById('gameSetupForm').addEventListener('submit', handleGameSetupSubmit);
+      
+      // 剧本删除 - 静态按钮
+      document.getElementById('deleteGameBtn').addEventListener('click', deleteCurrentGame);
+      
+      // 角色相关
+      document.getElementById('addCharacterBtn').addEventListener('click', () => openCharacterModal());
+      document.getElementById('closeCharacterModal').addEventListener('click', () => closeCharacterModal());
+      document.getElementById('cancelCharacter').addEventListener('click', () => closeCharacterModal());
+      document.getElementById('characterForm').addEventListener('submit', handleCharacterSubmit);
+      document.getElementById('randomAvatarColor').addEventListener('click', generateRandomAvatarColor);
+      document.getElementById('characterName').addEventListener('blur', updateAvatarFromName);
+      document.getElementById('avatarText').addEventListener('input', updateAvatarFromText);
+      
+      // 时间线相关
+      document.getElementById('addTimelineBtn').addEventListener('click', () => {
+        openTimelineModal();
+        renderCharacterSelectors(lastSelectedCharacterId || null);
+      });
+      document.getElementById('closeTimelineModal').addEventListener('click', () => closeTimelineModal());
+      document.getElementById('cancelTimeline').addEventListener('click', () => closeTimelineModal());
+      document.getElementById('timelineForm').addEventListener('submit', handleTimelineSubmit);
+      
+      // 时间输入验证
+      hoursInput.addEventListener('input', () => validateTimeInput(hoursInput, 0, 23));
+      minutesInput.addEventListener('input', () => validateTimeInput(minutesInput, 0, 59));
+      
+      // 日期选择变化时保存到历史记录
+      dayOffsetSelect.addEventListener('change', () => {
+        lastTimeSettings.dayOffset = dayOffsetSelect.value;
+      });
+      
+      // 帮助模态框
+      document.getElementById('helpBtn').addEventListener('click', () => helpModal.classList.remove('hidden'));
+      document.getElementById('closeHelpModal').addEventListener('click', () => helpModal.classList.add('hidden'));
+      
+      // 点击模态框背景关闭
+      characterModal.addEventListener('click', (e) => {
+        if (e.target === characterModal) closeCharacterModal();
+      });
+      
+      timelineModal.addEventListener('click', (e) => {
+        if (e.target === timelineModal) closeTimelineModal();
+      });
+      
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) helpModal.classList.add('hidden');
+      });
+      
+      // 修复核心：使用事件委托处理动态生成的删除按钮
+      
+      // 角色编辑和删除
+      charactersContainer.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-character');
+        const deleteBtn = e.target.closest('.delete-character');
+        
+        if (editBtn) {
+          const id = parseInt(editBtn.getAttribute('data-id'));
+          editCharacter(id);
+        } else if (deleteBtn) {
+          const id = parseInt(deleteBtn.getAttribute('data-id'));
+          deleteCharacter(id);
+        }
+      });
+      
+      // 时间线事件编辑和删除
+      timelineContainer.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-timeline');
+        const deleteBtn = e.target.closest('.delete-timeline');
+        
+        if (editBtn) {
+          const id = parseInt(editBtn.getAttribute('data-id'));
+          editTimeline(id);
+        } else if (deleteBtn) {
+          const id = parseInt(deleteBtn.getAttribute('data-id'));
+          deleteTimeline(id);
+        }
+      });
+      
+      // 历史剧本删除
+      historyContainer.addEventListener('click', (e) => {
+        const continueBtn = e.target.closest('.continue-game');
+        const deleteBtn = e.target.closest('.delete-history-game');
+        
+        if (continueBtn) {
+          const id = parseInt(continueBtn.getAttribute('data-id'));
+          currentGame = games.find(game => game.id === id);
+          currentGameTitle.textContent = `正在编辑：${currentGame.name}`;
+          timelineGameTitle.textContent = `正在编辑：${currentGame.name}`;
+          renderCharacters();
+          showPage('characters');
+        } else if (deleteBtn) {
+          const id = parseInt(deleteBtn.getAttribute('data-id'));
+          deleteHistoryGame(id);
+        }
+      });
+    }
+    
+    // 显示指定页面
+    function showPage(pageName) {
+      Object.keys(pages).forEach(key => {
+        pages[key].classList.add('hidden');
+      });
+      pages[pageName].classList.remove('hidden');
+    }
+    
+    // 处理游戏设置提交
+    function handleGameSetupSubmit(e) {
+      e.preventDefault();
+      
+      const gameName = document.getElementById('gameName').value;
+      
+      // 创建新游戏
+      currentGame = {
+        id: Date.now(),
+        name: gameName,
+        createdAt: new Date().toISOString(),
+        characters: [],
+        timelines: []
+      };
+      
+      // 更新UI
+      currentGameTitle.textContent = `正在编辑：${gameName}`;
+      timelineGameTitle.textContent = `正在编辑：${gameName}`;
+      renderCharacters();
+      
+      // 切换到角色页面
+      showPage('characters');
+    }
+    
+    // 渲染角色列表
+    function renderCharacters() {
+      if (!currentGame) return;
+      
+      charactersContainer.innerHTML = '';
+      
+      if (currentGame.characters.length === 0) {
+        charactersContainer.appendChild(noCharactersMsg);
+        proceedToTimelineBtn.disabled = true;
+        return;
+      }
+      
+      proceedToTimelineBtn.disabled = false;
+      
+      currentGame.characters.forEach(character => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg p-5 border border-medium shadow-sm card-hover';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center gap-3">
+              <div class="avatar w-10 h-10" style="background-color: ${character.avatarColor}">
+                ${character.avatarText}
+              </div>
+              <h3 class="text-xl font-bold text-primary">${character.name}</h3>
+            </div>
+            <div class="flex gap-1">
+              <button class="edit-character p-1.5 rounded-full hover:bg-medium transition-colors" data-id="${character.id}">
+                <i class="fa fa-pencil text-primary/70"></i>
+              </button>
+              <button class="delete-character p-1.5 rounded-full hover:bg-red-100 transition-colors" data-id="${character.id}">
+                <i class="fa fa-trash text-primary/70"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <span class="text-sm text-primary/60">与死者关系：</span>
+            <span class="text-primary">${character.relation}</span>
+          </div>
+          
+          ${character.secret ? `
+            <div class="mb-4">
+              <span class="text-sm text-primary/60">秘密/动机：</span>
+              <p class="text-primary/80 text-sm">${character.secret}</p>
+            </div>
+          ` : ''}
+        `;
+        
+        charactersContainer.appendChild(card);
+      });
+    }
+    
+    // 渲染角色选择器
+    function renderCharacterSelectors(selectedId = null) {
+      if (!currentGame || currentGame.characters.length === 0) {
+        characterSelectorContainer.innerHTML = '<div class="text-primary/60 text-sm w-full text-center py-2">请先添加角色</div>';
+        return;
+      }
+      
+      characterSelectorContainer.innerHTML = '';
+      selectedCharacterId = selectedId;
+      
+      currentGame.characters.forEach(character => {
+        const isSelected = selectedId === character.id;
+        const selector = document.createElement('div');
+        selector.className = `character-selector avatar w-12 h-12 ${isSelected ? 'selected' : ''}`;
+        selector.style.backgroundColor = character.avatarColor;
+        selector.setAttribute('data-id', character.id);
+        selector.innerHTML = `<span>${character.avatarText}</span>`;
+        
+        selector.addEventListener('click', () => {
+          document.querySelectorAll('.character-selector').forEach(el => {
+            el.classList.remove('selected');
+          });
+          selector.classList.add('selected');
+          selectedCharacterId = character.id;
+        });
+        
+        characterSelectorContainer.appendChild(selector);
+      });
+    }
+    
+    // 渲染时间线
+    function renderTimelines() {
+      if (!currentGame) return;
+      
+      timelineContainer.innerHTML = '<div class="timeline-line"></div>';
+      
+      // 获取所有时间点并生成小时标记
+      const allHours = new Set();
+      
+      // 按时间排序
+      const sortedTimelines = [...currentGame.timelines].sort((a, b) => {
+        if (a.dayOffset !== b.dayOffset) {
+          return a.dayOffset - b.dayOffset;
+        }
+        return a.time.localeCompare(b.time);
+      });
+      
+      if (sortedTimelines.length === 0) {
+        timelineContainer.appendChild(noTimelineMsg);
+        return;
+      }
+      
+      // 收集所有小时
+      sortedTimelines.forEach(event => {
+        const hour = parseInt(event.time.split(':')[0]);
+        allHours.add(`${event.dayOffset}|${hour}`);
+      });
+      
+      // 创建小时标记
+      Array.from(allHours).sort().forEach(hourKey => {
+        const [dayOffset, hour] = hourKey.split('|');
+        const dayLabel = getDayLabel(parseInt(dayOffset));
+        
+        const hourMark = document.createElement('div');
+        hourMark.className = 'timeline-hour-mark';
+        hourMark.style.top = '0';
+        hourMark.textContent = `${dayLabel} ${hour}:00`;
+        hourMark.setAttribute('data-key', hourKey);
+        
+        timelineContainer.appendChild(hourMark);
+      });
+      
+      // 渲染事件
+      let lastHourKey = null;
+      sortedTimelines.forEach(event => {
+        const character = currentGame.characters.find(c => c.id === event.characterId);
+        const characterName = character ? character.name : '未知角色';
+        const avatarColor = character ? character.avatarColor : '#e63946';
+        const avatarText = character ? character.avatarText : '?';
+        const dayLabel = getDayLabel(event.dayOffset);
+        
+        const eventEl = document.createElement('div');
+        eventEl.className = 'relative bg-white rounded-lg p-2.5 border border-medium shadow-sm card-hover flex items-center gap-3';
+        eventEl.setAttribute('data-day-offset', event.dayOffset);
+        eventEl.setAttribute('data-time', event.time);
+        
+        eventEl.innerHTML = `
+          <div class="timeline-dot" style="background-color: ${avatarColor}"></div>
+          
+          <div class="avatar w-7 h-7 shrink-0" style="background-color: ${avatarColor}">
+            ${avatarText}
+          </div>
+          
+          <div class="text-secondary text-sm whitespace-nowrap shrink-0">
+            ${dayLabel} ${event.time}
+          </div>
+          
+          <div class="flex-1 min-w-0">
+            <p class="text-primary text-sm truncate">${event.event}</p>
+          </div>
+          
+          <div class="flex gap-1 shrink-0 ml-2">
+            <button class="edit-timeline p-1 rounded-full hover:bg-medium transition-colors" data-id="${event.id}">
+              <i class="fa fa-pencil text-primary/70 text-sm"></i>
+            </button>
+            <button class="delete-timeline p-1 rounded-full hover:bg-red-100 transition-colors" data-id="${event.id}">
+              <i class="fa fa-trash text-primary/70 text-sm"></i>
+            </button>
+          </div>
+        `;
+        
+        timelineContainer.appendChild(eventEl);
+        
+        // 更新小时标记位置
+        const hour = parseInt(event.time.split(':')[0]);
+        const currentHourKey = `${event.dayOffset}|${hour}`;
+        if (currentHourKey !== lastHourKey) {
+          const hourMark = timelineContainer.querySelector(`[data-key="${currentHourKey}"]`);
+          if (hourMark) {
+            hourMark.style.top = `${eventEl.offsetTop}px`;
+          }
+          lastHourKey = currentHourKey;
+        }
+      });
+    }
+    
+    // 获取日期标签
+    function getDayLabel(dayOffset) {
+      switch(dayOffset) {
+        case -3: return '前3天';
+        case -2: return '前2天';
+        case -1: return '前1天';
+        case 0: return '当日';
+        default: return dayOffset > 0 ? `后${dayOffset}天` : `前${Math.abs(dayOffset)}天`;
+      }
+    }
+    
+    // 渲染历史剧本
+    function renderHistory() {
+      historyContainer.innerHTML = '';
+      
+      if (games.length === 0) {
+        historyContainer.appendChild(noHistoryMsg);
+        return;
+      }
+      
+      // 按创建时间排序，最新的在前
+      const sortedGames = [...games].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      sortedGames.forEach(game => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg p-5 border border-medium shadow-sm card-hover';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="text-xl font-bold text-primary">${game.name}</h3>
+            <div class="flex gap-1">
+              <button class="delete-history-game p-1.5 rounded-full hover:bg-red-100 transition-colors" data-id="${game.id}">
+                <i class="fa fa-trash text-primary/70"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-2 text-xs text-primary/60">创建于 ${formatDate(game.createdAt)}</div>
+          
+          <div class="mb-4 text-sm">
+            <div class="flex items-center mb-1">
+              <i class="fa fa-users text-secondary/70 mr-2 w-4"></i>
+              <span class="text-primary/80">${game.characters.length} 个角色</span>
+            </div>
+            <div class="flex items-center">
+              <i class="fa fa-clock-o text-secondary/70 mr-2 w-4"></i>
+              <span class="text-primary/80">${game.timelines.length} 个时间线事件</span>
+            </div>
+          </div>
+          
+          <div class="flex justify-end">
+            <button class="continue-game px-3 py-1.5 bg-secondary hover:bg-secondary/90 text-white rounded-md text-sm transition-colors" data-id="${game.id}">
+              继续编辑
+            </button>
+          </div>
+        `;
+        
+        historyContainer.appendChild(card);
+      });
+    }
+    
+    // 生成随机头像颜色
+    function generateRandomAvatarColor() {
+      const colors = [
+        '#e63946', '#dc2626', '#b91c1c', // 红色系
+        '#3b82f6', '#2563eb', '#1d4ed8', // 蓝色系
+        '#10b981', '#059669', '#047857', // 绿色系
+        '#f59e0b', '#d97706', '#b45309', // 黄色系
+        '#8b5cf6', '#7c3aed', '#6d28d9', // 紫色系
+        '#ec4899', '#db2777', '#be185d', // 粉色系
+        '#64748b', '#475569', '#334155'  // 灰色系
+      ];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      avatarPreview.style.backgroundColor = randomColor;
+      return randomColor;
+    }
+    
+    // 从姓名更新头像
+    function updateAvatarFromName() {
+      const nameInput = document.getElementById('characterName');
+      const name = nameInput.value.trim();
+      
+      if (name && !avatarTextInput.value) {
+        // 查找第一个汉字
+        let firstChineseChar = null;
+        for (let i = 0; i < name.length; i++) {
+          if (/[\u4e00-\u9fa5]/.test(name[i])) {
+            firstChineseChar = name[i];
+            break;
+          }
+        }
+        
+        // 如果找到汉字则使用，否则使用第一个字符
+        const displayChar = firstChineseChar || name[0];
+        
+        avatarPreview.textContent = displayChar;
+        avatarTextInput.value = displayChar;
+      }
+    }
+    
+    // 从头像文字输入更新头像
+    function updateAvatarFromText() {
+      let text = avatarTextInput.value.substring(0, 2);
+      avatarTextInput.value = text;
+      avatarPreview.textContent = text || '?';
+    }
+    
+    // 验证时间输入
+    function validateTimeInput(input, min, max) {
+      let value = parseInt(input.value);
+      
+      if (isNaN(value) || value < min) {
+        input.value = min;
+      } else if (value > max) {
+        input.value = max;
+      } else if (input.value.length > 2) {
+        input.value = input.value.substring(0, 2);
+      }
+      
+      if (input.id === 'hours') {
+        lastTimeSettings.hours = input.value;
+      } else {
+        lastTimeSettings.minutes = input.value;
+      }
+    }
+    
+    // 打开角色模态框
+    function openCharacterModal(character = null) {
+      const modalTitle = document.getElementById('characterModalTitle');
+      const characterIdInput = document.getElementById('characterId');
+      const nameInput = document.getElementById('characterName');
+      const relationInput = document.getElementById('characterRelation');
+      const secretInput = document.getElementById('characterSecret');
+      
+      if (character) {
+        modalTitle.textContent = '编辑角色';
+        characterIdInput.value = character.id;
+        nameInput.value = character.name;
+        relationInput.value = character.relation;
+        secretInput.value = character.secret || '';
+        avatarTextInput.value = character.avatarText;
+        avatarPreview.textContent = character.avatarText;
+        avatarPreview.style.backgroundColor = character.avatarColor;
+      } else {
+        modalTitle.textContent = '添加角色';
+        characterIdInput.value = '';
+        nameInput.value = '';
+        relationInput.value = '';
+        secretInput.value = '';
+        avatarTextInput.value = '';
+        avatarPreview.textContent = '?';
+        generateRandomAvatarColor();
+      }
+      
+      characterModal.classList.remove('hidden');
+      nameInput.focus();
+    }
+    
+    // 关闭角色模态框
+    function closeCharacterModal() {
+      characterModal.classList.add('hidden');
+      document.getElementById('characterForm').reset();
+    }
+    
+    // 处理角色表单提交
+    function handleCharacterSubmit(e) {
+      e.preventDefault();
+      
+      if (!currentGame) {
+        closeCharacterModal();
+        return;
+      }
+      
+      const characterId = document.getElementById('characterId').value;
+      const name = document.getElementById('characterName').value;
+      const relation = document.getElementById('characterRelation').value;
+      const secret = document.getElementById('characterSecret').value;
+      const avatarText = avatarTextInput.value || name.charAt(0);
+      const avatarColor = avatarPreview.style.backgroundColor;
+      
+      if (characterId) {
+        // 编辑现有角色
+        const index = currentGame.characters.findIndex(c => c.id === parseInt(characterId));
+        if (index !== -1) {
+          currentGame.characters[index] = {
+            ...currentGame.characters[index],
+            name,
+            relation,
+            secret,
+            avatarText,
+            avatarColor
+          };
+        }
+      } else {
+        // 添加新角色
+        currentGame.characters.push({
+          id: Date.now(),
+          name,
+          relation,
+          secret,
+          avatarText,
+          avatarColor
+        });
+      }
+      
+      saveGameData();
+      renderCharacters();
+      closeCharacterModal();
+    }
+    
+    // 编辑角色
+    function editCharacter(id) {
+      if (!currentGame) return;
+      
+      const character = currentGame.characters.find(c => c.id === id);
+      if (character) {
+        openCharacterModal(character);
+      }
+    }
+    
+    // 删除角色
+    function deleteCharacter(id) {
+      if (!currentGame) return;
+      
+      const character = currentGame.characters.find(c => c.id === id);
+      if (!character) return;
+      
+      if (confirm(`确定要删除角色"${character.name}"吗？相关的时间线事件也会被删除。`)) {
+        // 删除角色
+        currentGame.characters = currentGame.characters.filter(c => c.id !== id);
+        
+        // 删除相关的时间线事件
+        currentGame.timelines = currentGame.timelines.filter(t => t.characterId !== id);
+        
+        // 如果上次选择的角色被删除，重置
+        if (lastSelectedCharacterId === id) {
+          lastSelectedCharacterId = null;
+        }
+        
+        saveGameData();
+        renderCharacters();
+      }
+    }
+    
+    // 打开时间线模态框
+    function openTimelineModal(event = null) {
+      if (!currentGame) return;
+      
+      const modalTitle = document.getElementById('timelineModalTitle');
+      const timelineIdInput = document.getElementById('timelineId');
+      const eventInput = document.getElementById('timelineEvent');
+      
+      if (event) {
+        modalTitle.textContent = '编辑时间线事件';
+        timelineIdInput.value = event.id;
+        dayOffsetSelect.value = event.dayOffset;
+        eventInput.value = event.event;
+        
+        // 解析时间
+        const [hours, minutes] = event.time.split(':').map(Number);
+        hoursInput.value = hours;
+        minutesInput.value = minutes;
+        
+        renderCharacterSelectors(event.characterId);
+      } else {
+        modalTitle.textContent = '添加时间线事件';
+        timelineIdInput.value = '';
+        eventInput.value = '';
+        
+        // 设置日期为上次选择的值
+        dayOffsetSelect.value = lastTimeSettings.dayOffset;
+        
+        // 设置时间
+        if (lastTimeSettings.hours && lastTimeSettings.minutes) {
+          hoursInput.value = lastTimeSettings.hours;
+          minutesInput.value = lastTimeSettings.minutes;
+        } else {
+          const now = new Date();
+          hoursInput.value = now.getHours();
+          minutesInput.value = now.getMinutes();
+        }
+        
+        // 渲染角色选择器
+        renderCharacterSelectors(lastSelectedCharacterId || null);
+      }
+      
+      timelineModal.classList.remove('hidden');
+      hoursInput.focus();
+    }
+    
+    // 关闭时间线模态框
+    function closeTimelineModal() {
+      timelineModal.classList.add('hidden');
+      document.getElementById('timelineForm').reset();
+      selectedCharacterId = null;
+    }
+    
+    // 处理时间线表单提交
+    function handleTimelineSubmit(e) {
+      e.preventDefault();
+      
+      if (!currentGame || selectedCharacterId === null) {
+        alert('请选择一个角色');
+        return;
+      }
+      
+      // 获取并验证时间输入
+      const dayOffset = parseInt(dayOffsetSelect.value);
+      const hours = parseInt(hoursInput.value);
+      const minutes = parseInt(minutesInput.value);
+      
+      if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        alert('请输入有效的时间');
+        return;
+      }
+      
+      // 格式化时间为HH:MM格式
+      const time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      
+      // 保存当前时间设置到历史记录
+      lastTimeSettings = {
+        dayOffset: dayOffsetSelect.value,
+        hours: hours,
+        minutes: minutes
+      };
+      
+      const timelineId = document.getElementById('timelineId').value;
+      const characterId = selectedCharacterId;
+      const event = document.getElementById('timelineEvent').value;
+      
+      // 保存上次选择的角色ID
+      lastSelectedCharacterId = characterId;
+      
+      if (timelineId) {
+        // 编辑现有事件
+        const index = currentGame.timelines.findIndex(t => t.id === parseInt(timelineId));
+        if (index !== -1) {
+          currentGame.timelines[index] = {
+            ...currentGame.timelines[index],
+            dayOffset,
+            time,
+            characterId,
+            event
+          };
+        }
+      } else {
+        // 添加新事件
+        currentGame.timelines.push({
+          id: Date.now(),
+          dayOffset,
+          time,
+          characterId,
+          event
+        });
+      }
+      
+      saveGameData();
+      renderTimelines();
+      closeTimelineModal();
+    }
+    
+    // 编辑时间线事件
+    function editTimeline(id) {
+      if (!currentGame) return;
+      
+      const event = currentGame.timelines.find(t => t.id === id);
+      if (event) {
+        openTimelineModal(event);
+      }
+    }
+    
+    // 删除时间线事件
+    function deleteTimeline(id) {
+      if (!currentGame) return;
+      
+      if (confirm('确定要删除这个时间线事件吗？')) {
+        currentGame.timelines = currentGame.timelines.filter(t => t.id !== id);
+        
+        saveGameData();
+        renderTimelines();
+      }
+    }
+    
+    // 删除当前剧本
+    function deleteCurrentGame() {
+      if (!currentGame) return;
+      
+      if (confirm(`确定要删除剧本"${currentGame.name}"吗？所有角色和时间线事件都将被删除，此操作不可恢复。`)) {
+        // 从游戏列表中移除
+        games = games.filter(game => game.id !== currentGame.id);
+        localStorage.setItem('scriptKillGames', JSON.stringify(games));
+        
+        // 重置当前游戏
+        currentGame = null;
+        
+        // 返回首页
+        showPage('home');
+        renderHistory();
+      }
+    }
+    
+    // 删除历史剧本
+    function deleteHistoryGame(id) {
+      const game = games.find(g => g.id === id);
+      if (!game) return;
+      
+      if (confirm(`确定要删除剧本"${game.name}"吗？所有角色和时间线事件都将被删除，此操作不可恢复。`)) {
+        // 如果删除的是当前正在编辑的剧本
+        if (currentGame && currentGame.id === id) {
+          currentGame = null;
+        }
+        
+        // 从游戏列表中移除
+        games = games.filter(game => game.id !== id);
+        localStorage.setItem('scriptKillGames', JSON.stringify(games));
+        
+        // 更新UI
+        renderHistory();
+      }
+    }
+    
+    // 保存游戏数据到本地存储
+    function saveGameData() {
+      if (!currentGame) return;
+      
+      // 检查当前游戏是否已在游戏列表中
+      const gameIndex = games.findIndex(game => game.id === currentGame.id);
+      
+      if (gameIndex !== -1) {
+        // 更新现有游戏
+        games[gameIndex] = currentGame;
+      } else {
+        // 添加新游戏
+        games.push(currentGame);
+      }
+      
+      localStorage.setItem('scriptKillGames', JSON.stringify(games));
+    }
+    
+    // 格式化日期显示
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    }
+  </script>
+</body>
+</html>
